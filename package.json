@@ -10,7 +10,8 @@
   },
   "dependencies" : {
     "zombie"   :  ">=0.0.1",
-    "coffee-script" : ">=0.0.1"
+    "coffee-script" : ">=0.0.1",
+    "prompt" : ">=0.0.1"
   },
   "license": "MIT"
 }
