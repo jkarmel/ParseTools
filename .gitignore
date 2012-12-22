@@ -1,2 +1,3 @@
 /node_modules
-parse_creds.txt
+login_creds.txt
+app_creds.json
