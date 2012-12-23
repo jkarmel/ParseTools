@@ -4,8 +4,8 @@ _ = require('underscore')._
 Browser = require 'zombie'
 browser = new Browser
 
-LOGIN_CREDS_FILE = 'login_creds.txt'
-APP_CREDS_FILE = 'app_creds.json'
+LOGIN_CREDS_FILE = './login_creds.txt'
+APP_CREDS_FILE = './app_creds.json'
 COOKIES_FILE = './data/cookies'
 
 saveCreds = (email, password) ->
@@ -85,3 +85,30 @@ saveAppCreds = ->
         for [key, val] in keyValPairs[i * 5.. i * 5 + 5]
           res[name][key] = val
       fs.writeFile APP_CREDS_FILE, JSON.stringify res, null, 2
+
+withCreds = (cb) ->
+  browser.withLoggedIn ->
+    creds = JSON.parse fs.readFileSync APP_CREDS_FILE
+    cb creds
+
+withClassNames = (appName, cb) ->
+  withCreds (creds) ->
+    appCreds = creds[appName]
+    browser.visit appCreds.url + '/collections'
+    matches = -> browser.document.body.innerHTML.match(/var schemaJson.*;/g)
+    browser.wait matches, ->
+      schemas = JSON.parse matches()[0][16..-2]
+      classNames = (schema.className for schema in schemas)
+      cb classNames
+
+saveAppData = (appName) ->
+  for className in classNames
+    do (className) ->
+      options = 
+        host: "api.parse.com"
+        path: "/1/classes/#{className}" 
+        headers:
+          'X-Parse-Application-Id': process.env.PARSE_APP_ID 
+          'X-Parse-REST-API-Key': process.env.PARSE_REST_KEY
+
+      https.get options, (res)-> res.pipe filed("./data/#{className}.parse")
