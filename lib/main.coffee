@@ -6,6 +6,7 @@ browser = new Browser
 
 LOGIN_CREDS_FILE = 'login_creds.txt'
 APP_CREDS_FILE = 'app_creds.json'
+COOKIES_FILE = './data/cookies'
 
 saveCreds = (email, password) ->
   data = email + '\n' + password
@@ -35,6 +36,22 @@ browser.visitParseHome = (cb) ->
 
 browser.logIntoParse = browser.visitParseHome
 
+browser.saveLoggedIn = ->
+  browser.logIntoParse ->
+    fs.writeFileSync COOKIES_FILE, browser.saveCookies()
+
+browser.loadLoggedIn = (cb) ->
+  browser.loadCookies "" + fs.readFileSync COOKIES_FILE 
+  cb()
+
+browser.withLoggedIn = (cb) ->
+  if fs.existsSync COOKIES_FILE
+    browser.loadLoggedIn ->
+      cb()
+  else 
+    browser.saveLoggedIn ->
+      cb()
+
 list = ->
   browser.visitParseHome ->  
     apps = browser.document.querySelectorAll '.name'
@@ -48,20 +65,23 @@ newApp = (name) ->
         .pressButton 'Create app', ->
 
 saveAppCreds = ->
-  browser.logIntoParse ->
+  browser.withLoggedIn ->
     browser.visit 'https://parse.com/account/keys', ->
       keyElts = browser.document.querySelectorAll '.app_key p'
       valueElts = browser.document.querySelectorAll '.app_key input'
+      appLinks = browser.document.querySelectorAll '.header a'
+
       keys = (keyElt.innerHTML[..-4] for keyElt in keyElts)
       values = (valueElt.value for valueElt in valueElts)
+      urls = (link.href for link in appLinks)
+
       keyValPairs = _.zip keys, values
       nameElts = browser.document.querySelectorAll '.header a'
       names = (elt.innerHTML for elt in nameElts)
       res = {}
       for name, i in names
         res[name] = {}
+        res[name].url = urls[i]
         for [key, val] in keyValPairs[i * 5.. i * 5 + 5]
           res[name][key] = val
       fs.writeFile APP_CREDS_FILE, JSON.stringify res, null, 2
-
-saveAppCreds()
